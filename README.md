@@ -31,6 +31,6 @@ Options:
     How much byte are represented by 1 KB? Usually 1024 (default) or 1000.
 
 The application is build with the
-[dmenu](https://hackage.haskell.org/package/dmenu) Haskell bindings, which
-supports customizing the dmenu commandline options in a configuration file.
+[dmenu Haskell bindings](https://hackage.haskell.org/package/dmenu), which
+support customizing the dmenu commandline options in a configuration file.
 
