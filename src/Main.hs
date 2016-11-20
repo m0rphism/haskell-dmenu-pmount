@@ -174,24 +174,15 @@ main
   :: IO ()
 main = do
   (unmount, prefixes, k) <- readArgs =<< getArgs
-  if not unmount then do
-    devs ← filterWithPrefixes prefixes <$> getDevs
-    devInfos ← map (_2 %~ showBytes k) <$> getPartitionInfos
-    let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
-    let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSpR devs) (fillWithSpL devInfos')
-    DMenu.selectWith (DMenu.prompt .= "mount") snd devs' >>= \case
-      Right (dev,_) | not (null dev) → callProcess "pmount" [dev]
-                    | otherwise → pure ()
-      Left (i, err) → putStrLn $ "DMenu failed with exit code " ++ show i ++ ": " ++ err
-  else do
-    devs ← map (drop 5) . filterWithPrefixes (map ("/dev/"++) prefixes) <$> getMountedDevs
-    devInfos ← map (_2 %~ showBytes k) <$> getPartitionInfos
-    let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
-    let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSpL devs) (fillWithSpR devInfos')
-    DMenu.selectWith (DMenu.prompt .= "umount") snd devs' >>= \case
-      Right (dev,_) | not (null dev) → callProcess "pumount" [dev]
-                    | otherwise → pure ()
-      Left (i, err) → putStrLn $ "DMenu failed with exit code " ++ show i ++ ": " ++ err
+  let (prog, devsM) | unmount = ("pumount", map (drop 5) . filterWithPrefixes (map ("/dev/"++) prefixes) <$> getMountedDevs)
+                    | otherwise = ("pmount", filterWithPrefixes prefixes <$> getDevs)
+  devs ← devsM
+  devInfos ← map (_2 %~ showBytes k) <$> getPartitionInfos
+  let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
+  let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSpR devs) (fillWithSpL devInfos')
+  DMenu.selectWith (DMenu.prompt .= drop 1 prog) snd devs' >>= \case
+    Right (dev,_) | not (null dev) → callProcess prog [dev]
+    _                              → pure ()
 
 usage
   :: String
