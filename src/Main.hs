@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.IO.Class
 import Control.Lens
+import Text.Read (readMaybe)
 import System.Directory
 import System.Environment
 import System.Exit
@@ -97,13 +98,13 @@ showBytes k i
 -- storage devices.
 getPartitionInfos
   :: MonadIO m
-  => m [(FilePath, String)] -- ^ Map from device name to @String@ representation of it's capacity.
+  => m [(FilePath, Integer)] -- ^ Map from device name to @String@ representation of it's capacity.
 getPartitionInfos = do
   sOut ← runProcOr "cat" ["/proc/partitions"] "" ""
   forM (drop 2 $ lines sOut) $ \l → do
     let numBlocks :: Integer = read $ head $ words $ skipNumbersAndWS 2 l
     let devPath = head (words $ skipNumbersAndWS 3 l)
-    pure (devPath, showBytes 1024 $ numBlocks * 1024)
+    pure (devPath, numBlocks * 1024)
 
 -- | Make all @String@s in a list have the same size, by filling missing
 -- characters with spaces from the right.
@@ -142,9 +143,9 @@ getMountedDevs =
 -- | Parse the command line arguments
 readArgs
   :: [String] -- ^ Arguments from 'getArgs'
-  -> IO (Bool, [String]) -- ^ Whether the unmount flag was set, and a list of device prefixes to filter for.
+  -> IO (Bool, [String], Integer) -- ^ (1) Whether the unmount flag was set, (2) a list of device prefixes to filter for, (3) how much byte are 1 KB.
 readArgs args =
-  execStateT (go $ words $ unwords args) (False, [])
+  execStateT (go $ words $ unwords args) (False, [], 1024)
  where
   go [] =
     pure ()
@@ -156,20 +157,26 @@ readArgs args =
     | a `elem` ["-u", "--unmount"] = do
       _1 .= True
       go as
+    | a `elem` ["-k", "--kilo"]
+    , a':as' <- as
+    , Just k <- readMaybe a'
+    , k > 0 = do
+      _3 .= k
+      go as'
     | a == "" =
       go as
-    | otherwise =
-      liftIO $ do
-        putStrLn usage
-        exitFailure
+  go _ =
+    liftIO $ do
+      putStrLn usage
+      exitFailure
 
 main
   :: IO ()
 main = do
-  (unmount, prefixes) <- readArgs =<< getArgs
+  (unmount, prefixes, k) <- readArgs =<< getArgs
   if not unmount then do
     devs ← filterWithPrefixes prefixes <$> getDevs
-    devInfos ← getPartitionInfos
+    devInfos ← map (_2 %~ showBytes k) <$> getPartitionInfos
     let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
     let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSpR devs) (fillWithSpL devInfos')
     DMenu.selectWith (DMenu.prompt .= "mount") snd devs' >>= \case
@@ -178,7 +185,7 @@ main = do
       Left (i, err) → putStrLn $ "DMenu failed with exit code " ++ show i ++ ": " ++ err
   else do
     devs ← map (drop 5) . filterWithPrefixes (map ("/dev/"++) prefixes) <$> getMountedDevs
-    devInfos ← getPartitionInfos
+    devInfos ← map (_2 %~ showBytes k) <$> getPartitionInfos
     let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
     let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSpL devs) (fillWithSpR devInfos')
     DMenu.selectWith (DMenu.prompt .= "umount") snd devs' >>= \case
@@ -199,4 +206,6 @@ usage =
     , "    Only display devices whose filenames have a certain prefix."
     , "    Example: `dmenu-pmount -f sd cdrom` only displays devices beginning with"
     , "             `sd` or `cdrom`, e.g. `/dev/sda2`."
+    , "  -k, --kilo <Natural>"
+    , "    How much byte are represented by 1 KB? Usually 1024 (default) or 1000."
     ]
