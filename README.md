@@ -1,12 +1,16 @@
 # haskell-dmenu-pmount
-Mounting and unmounting linux devices as a user with dmenu and pmount.
+Mounting and unmounting linux devices as a user with `dmenu` and `pmount`.
 
 ![dmenu-pmount screenshot](doc/dmenu-pmount.png)
 
-The application requires
+Requirements:
 [dmenu](http://tools.suckless.org/dmenu/) or
 [dmenu2](https://bitbucket.org/melek/dmenu2), and
-[pmount](https://linux.die.net/man/1/pmount).
+[pmount](https://linux.die.net/man/1/pmount) must be installed.
+
+Installation:
+  Either get the sources from this source repository or
+  [from hackage](https://hackage.haskell.org/package/dmenu-pmount).
 
 Usage:
 
