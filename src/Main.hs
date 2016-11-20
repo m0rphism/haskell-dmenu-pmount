@@ -1,5 +1,7 @@
 {-# LANGUAGE UnicodeSyntax, LambdaCase, ScopedTypeVariables, FlexibleContexts #-}
 
+module Main where
+
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.IO.Class
@@ -140,7 +142,7 @@ getMountedDevs =
 -- | Parse the command line arguments
 readArgs
   :: [String] -- ^ Arguments from 'getArgs'
-  -> IO (Bool, [String]) -- ^ Whether to unmount flag was set, and a list of device prefixes to filter for.
+  -> IO (Bool, [String]) -- ^ Whether the unmount flag was set, and a list of device prefixes to filter for.
 readArgs args =
   execStateT (go $ words $ unwords args) (False, [])
  where
