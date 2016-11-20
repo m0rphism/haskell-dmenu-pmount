@@ -1,6 +1,7 @@
-{-# LANGUAGE UnicodeSyntax, LambdaCase, ScopedTypeVariables #-}
+{-# LANGUAGE UnicodeSyntax, LambdaCase, ScopedTypeVariables, FlexibleContexts #-}
 
 import Control.Monad
+import Control.Monad.State
 import Control.Monad.IO.Class
 import Control.Lens
 import System.Directory
@@ -55,18 +56,9 @@ filterWithPrefixes
   :: [String]
   -> [String]
   -> [String]
-filterWithPrefixes ps =
-  filter $ \s → any (`isPrefixOf` s) ps
-
-devPathPrefixes
-  :: [String]
-devPathPrefixes =
-  [ "sd" ]
-
-devPathPrefixesU
-  :: [String]
-devPathPrefixesU =
-  map ("/dev/" ++) [ "sd" ]
+filterWithPrefixes = \case
+  [] -> id
+  ps -> filter $ \s → any (`isPrefixOf` s) ps
 
 -- | Drop an amount of number substrings separated by whitespace from a string.
 skipNumbersAndWS
@@ -134,34 +126,52 @@ getMountedDevs =
       ExitSuccess   → map ((!! 0) . words) $ drop 1 $ init $ lines sOut
       ExitFailure _ → []
 
+-- Use Control.Monad.State
+readArgs
+  :: [String]
+  -> IO (Bool, [String])
+readArgs args =
+  execStateT (go $ words $ unwords args) (False, [])
+ where
+  go [] =
+    pure ()
+  go (a:as)
+    | a `elem` ["-f", "--filter"] = do
+      let (prefixes, as') = break ("-" `isPrefixOf`) as
+      _2 %= (++prefixes)
+      go as'
+    | a `elem` ["-u", "--unmount"] = do
+      _1 .= True
+      go as
+    | a == "" =
+      go as
+    | otherwise =
+      liftIO $ do
+        putStrLn usage
+        exitFailure
+
 main
   :: IO ()
-main =
-  getArgs >>= \case
-    [] → do
-      devs ← filterWithPrefixes devPathPrefixes <$> getDevs
-      devInfos ← getPartitionInfos
-      let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
-      let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSP devs) (fillWithSPR devInfos')
-      DMenu.selectWith (DMenu.prompt .= "mount") snd devs' >>= \case
-        Right (dev,_) | not (null dev) → callProcess "pmount" [dev]
-                      | otherwise → pure ()
-        Left (i, err) → putStrLn $ "DMenu failed with exit code " ++ show i ++ ": " ++ err
-    ["-u"] → do
-      devs ← map (drop 5) . filterWithPrefixes devPathPrefixesU <$> getMountedDevs
-      devInfos ← getPartitionInfos
-      let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
-      let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSP devs) (fillWithSPR devInfos')
-      DMenu.selectWith (DMenu.prompt .= "umount") snd devs' >>= \case
-        Right (dev,_) | not (null dev) → callProcess "pumount" [dev]
-                      | otherwise → pure ()
-        Left (i, err) → putStrLn $ "DMenu failed with exit code " ++ show i ++ ": " ++ err
-      -- DMenu.runAsk (DMenu.prompt .= "umount") devs >>= \case
-      --   Right (dev:_) | not (null dev) → callProcess "pumount" [dev]
-      --   _             → pure ()
-    _ → do
-      putStrLn usage
-      exitFailure
+main = do
+  (unmount, prefixes) <- readArgs =<< getArgs
+  if not unmount then do
+    devs ← filterWithPrefixes prefixes <$> getDevs
+    devInfos ← getPartitionInfos
+    let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
+    let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSP devs) (fillWithSPR devInfos')
+    DMenu.selectWith (DMenu.prompt .= "mount") snd devs' >>= \case
+      Right (dev,_) | not (null dev) → callProcess "pmount" [dev]
+                    | otherwise → pure ()
+      Left (i, err) → putStrLn $ "DMenu failed with exit code " ++ show i ++ ": " ++ err
+  else do
+    devs ← map (drop 5) . filterWithPrefixes (map ("/dev/"++) prefixes) <$> getMountedDevs
+    devInfos ← getPartitionInfos
+    let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
+    let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSP devs) (fillWithSPR devInfos')
+    DMenu.selectWith (DMenu.prompt .= "umount") snd devs' >>= \case
+      Right (dev,_) | not (null dev) → callProcess "pumount" [dev]
+                    | otherwise → pure ()
+      Left (i, err) → putStrLn $ "DMenu failed with exit code " ++ show i ++ ": " ++ err
 
 usage
   :: String
@@ -170,5 +180,10 @@ usage =
     [ "Usage: dmenu-pmount [-u]"
     , ""
     , "Options:"
-    , "  -u: unmount devices with pumount."
+    , "  -u, --unmount"
+    , "    Unmount devices displayed by `pmount` with `pumount`."
+    , "  -f, --filter <DevPrefixList>"
+    , "    Only display devices whose filenames have a certain prefix."
+    , "    Example: `dmenu-pmount -f sd cdrom` only displays devices beginning with"
+    , "             `sd` or `cdrom`, e.g. `/dev/sda2`."
     ]
