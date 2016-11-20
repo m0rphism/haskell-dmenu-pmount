@@ -14,6 +14,7 @@ import Data.List (isPrefixOf, sort)
 
 import qualified DMenu
 
+-- | List the files in a directory or the empty list in case of an exception.
 listDirectoryDef
   :: MonadIO m
   => FilePath
@@ -22,18 +23,20 @@ listDirectoryDef p =
   liftIO $ fmap sort $
     listDirectory p `catch` (\(_ :: SomeException) -> pure [])
 
+-- | Return all files in the /dev/ directory.
 getDevs
   :: MonadIO m
-  => m [String]
+  => m [FilePath]
 getDevs =
   liftIO $ listDirectoryDef "/dev"
 
+-- | Run a process.
 runProc
   :: MonadIO m
-  => String
-  -> [String]
-  -> String
-  -> m (Either String String)
+  => String   -- ^ Program name
+  -> [String] -- ^ Program arguments
+  -> String   -- ^ Input piped into @stdin@
+  -> m (Either String String) -- ^ Either the @stderr@ output, if the process failed, or the @stdout@ output.
 runProc prog args sIn =
   liftIO $ do
     (exitCode, sOut, sErr) ←
@@ -42,27 +45,29 @@ runProc prog args sIn =
       ExitSuccess   → Right sOut
       ExitFailure _ → Left sErr
 
+-- | Run a process.
 runProcOr
   :: MonadIO m
-  => String
-  -> [String]
-  -> String
-  -> String
-  -> m String
+  => String   -- ^ Program name
+  -> [String] -- ^ Program arguments
+  -> String   -- ^ Input piped into @stdin@
+  -> String   -- ^ Default value, returned if process exits with failure
+  -> m String -- ^ Either the default value, or the @stdout@ output of the process
 runProcOr prog args sIn sDef =
   either (const sDef) id <$> runProc prog args sIn
 
+-- | Keep 'String's which have certain prefixes.
 filterWithPrefixes
-  :: [String]
-  -> [String]
-  -> [String]
+  :: [String] -- ^ List of prefixes
+  -> [String] -- ^ List of 'String's to filter
+  -> [String] -- ^ 'String's which have one of the prefixes as prefix.
 filterWithPrefixes = \case
   [] -> id
   ps -> filter $ \s → any (`isPrefixOf` s) ps
 
 -- | Drop an amount of number substrings separated by whitespace from a string.
 skipNumbersAndWS
-  :: Int
+  :: Int -- ^ How many numbers to skip
   -> String
   -> String
 skipNumbersAndWS =
@@ -73,7 +78,7 @@ skipNumbersAndWS =
   go b n (c:s) | c `elem` ['0'..'9'] = go True n s
                | otherwise           = go False (if b then n-1 else n) s
 
--- Display a byte size as 'String'.
+-- | Display a byte size as 'String'.
 showBytes
   :: Integer -- ^ Number of bytes for @1 KB@. Usually @1024@ or @1000@.
   -> Integer -- ^ Number of bytes to display as 'String'.
@@ -86,10 +91,11 @@ showBytes k i
   | i < k*k*k*k*k = show (i `div` (k*k*k*k)) ++ " TB"
   | otherwise     = show (i `div` (k*k*k*k*k)) ++ " PB"
 
-
+-- | Run @cat /proc/partitions@ and collect info about the capacities of
+-- storage devices.
 getPartitionInfos
   :: MonadIO m
-  => m [(FilePath, String)]
+  => m [(FilePath, String)] -- ^ Map from device name to @String@ representation of it's capacity.
 getPartitionInfos = do
   sOut ← runProcOr "cat" ["/proc/partitions"] "" ""
   forM (drop 2 $ lines sOut) $ \l → do
@@ -97,24 +103,29 @@ getPartitionInfos = do
     let devPath = head (words $ skipNumbersAndWS 3 l)
     pure (devPath, showBytes 1024 $ numBlocks * 1024)
 
-fillWithSP
+-- | Make all @String@s in a list have the same size, by filling missing
+-- characters with spaces from the right.
+fillWithSpR
   :: [String]
   -> [String]
-fillWithSP ss =
+fillWithSpR ss =
   map f ss
  where
   f s = s ++ replicate (maxLength - length s) ' '
   maxLength = maximum (map length ss)
 
-fillWithSPR
+-- | Make all @String@s in a list have the same size, by filling missing
+-- characters with spaces from the left.
+fillWithSpL
   :: [String]
   -> [String]
-fillWithSPR ss =
+fillWithSpL ss =
   map f ss
  where
   f s = replicate (maxLength - length s) ' ' ++ s
   maxLength = maximum (map length ss)
 
+-- | Spawn a @pmount@ process and retrieve a list of currently mounted devices.
 getMountedDevs
   :: MonadIO m
   => m [FilePath]
@@ -126,10 +137,10 @@ getMountedDevs =
       ExitSuccess   → map ((!! 0) . words) $ drop 1 $ init $ lines sOut
       ExitFailure _ → []
 
--- Use Control.Monad.State
+-- | Parse the command line arguments
 readArgs
-  :: [String]
-  -> IO (Bool, [String])
+  :: [String] -- ^ Arguments from 'getArgs'
+  -> IO (Bool, [String]) -- ^ Whether to unmount flag was set, and a list of device prefixes to filter for.
 readArgs args =
   execStateT (go $ words $ unwords args) (False, [])
  where
@@ -158,7 +169,7 @@ main = do
     devs ← filterWithPrefixes prefixes <$> getDevs
     devInfos ← getPartitionInfos
     let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
-    let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSP devs) (fillWithSPR devInfos')
+    let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSpR devs) (fillWithSpL devInfos')
     DMenu.selectWith (DMenu.prompt .= "mount") snd devs' >>= \case
       Right (dev,_) | not (null dev) → callProcess "pmount" [dev]
                     | otherwise → pure ()
@@ -167,7 +178,7 @@ main = do
     devs ← map (drop 5) . filterWithPrefixes (map ("/dev/"++) prefixes) <$> getMountedDevs
     devInfos ← getPartitionInfos
     let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
-    let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSP devs) (fillWithSPR devInfos')
+    let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSpL devs) (fillWithSpR devInfos')
     DMenu.selectWith (DMenu.prompt .= "umount") snd devs' >>= \case
       Right (dev,_) | not (null dev) → callProcess "pumount" [dev]
                     | otherwise → pure ()
