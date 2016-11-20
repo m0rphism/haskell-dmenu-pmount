@@ -9,7 +9,7 @@ Requirements:
 [pmount](https://linux.die.net/man/1/pmount) must be installed.
 
 Installation:
-  Either get the sources from this source repository or
+  Either get the sources from this repository, or
   [from hackage](https://hackage.haskell.org/package/dmenu-pmount).
 
 Usage:
