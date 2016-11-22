@@ -4,6 +4,8 @@ Mounting and unmounting linux devices as a user with `dmenu` and `pmount`.
 ![dmenu-pmount screenshot](doc/dmenu-pmount.png)
 
 Runtime Dependencies:
+  [dmenu](http://tools.suckless.org/dmenu/) or
+  [dmenu2](https://bitbucket.org/melek/dmenu2), and
   [pmount](https://linux.die.net/man/1/pmount).
 
 Installation:
