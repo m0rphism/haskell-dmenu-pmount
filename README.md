@@ -1,12 +1,16 @@
 # haskell-dmenu-pmount
-Mounting and unmounting linux devices as a user with dmenu and pmount.
+Mounting and unmounting linux devices as a user with `dmenu` and `pmount`.
 
 ![dmenu-pmount screenshot](doc/dmenu-pmount.png)
 
-The application requires
-[dmenu](http://tools.suckless.org/dmenu/) or
-[dmenu2](https://bitbucket.org/melek/dmenu2), and
-[pmount](https://linux.die.net/man/1/pmount).
+Runtime Dependencies:
+  [dmenu](http://tools.suckless.org/dmenu/) or
+  [dmenu2](https://bitbucket.org/melek/dmenu2), and
+  [pmount](https://linux.die.net/man/1/pmount).
+
+Installation:
+  Either get the sources from this repository, or
+  [from hackage](https://hackage.haskell.org/package/dmenu-pmount).
 
 Usage:
 
@@ -31,6 +35,6 @@ Options:
     How much byte are represented by 1 KB? Usually 1024 (default) or 1000.
 
 The application is build with the
-[dmenu](https://hackage.haskell.org/package/dmenu) Haskell bindings, which
-supports customizing the dmenu commandline options in a configuration file.
+[dmenu Haskell bindings](https://hackage.haskell.org/package/dmenu), which
+support customizing the dmenu commandline options in a configuration file.
 
