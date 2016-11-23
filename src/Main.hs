@@ -150,6 +150,9 @@ readArgs args =
   go [] =
     pure ()
   go (a:as)
+    -- All arguments after "--" are passed to dmenu later.
+    | a == "--" =
+      pure ()
     | a `elem` ["-f", "--filter"] = do
       let (prefixes, as') = break ("-" `isPrefixOf`) as
       _2 %= (++prefixes)
@@ -180,7 +183,10 @@ main = do
   devInfos ← map (_2 %~ showBytes k) <$> getPartitionInfos
   let devInfos' = map (fromMaybe "" . flip lookup devInfos) devs
   let devs' = zip devs $ zipWith (\x y → x++"  "++y) (fillWithSpR devs) (fillWithSpL devInfos')
-  DMenu.selectWith (DMenu.prompt .= drop 1 prog) snd devs' >>= \case
+  let dmenuOpts = do
+        DMenu.prompt .= drop 1 prog
+        DMenu.forwardExtraArgs
+  DMenu.selectWith dmenuOpts snd devs' >>= \case
     Right (dev,_) | not (null dev) → callProcess prog [dev]
     _                              → pure ()
 
@@ -188,9 +194,14 @@ usage
   :: String
 usage =
   unlines
-    [ "Usage: dmenu-pmount [-u]"
+    [ "USAGE"
+    , "  dmenu-pmount [OPTIONS] [-- DMENUOPTIONS]"
     , ""
-    , "Options:"
+    , "  Mount or unmount a linux device with dmenu and pmount as user."
+    , ""
+    , "  All arguments, after the first `--` argument, are directly passed to dmenu."
+    , ""
+    , "OPTIONS"
     , "  -u, --unmount"
     , "    Unmount devices displayed by `pmount` with `pumount`."
     , "  -f, --filter <DevPrefixList>"
