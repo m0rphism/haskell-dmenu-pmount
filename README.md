@@ -14,10 +14,12 @@ Installation:
 
 Usage:
 
-*   `dmenu-pmount [OPTIONS]`
+*   `dmenu-pmount [OPTIONS] [-- DMENUOPTIONS]`
 
     Spawns a dmenu process to let the user select devices from `/dev` to
     mount with `pmount` or unmount with `pumount`.
+    
+    All arguments, after the first `--` argument, are directly passed to `dmenu`.
 
 Options:
 
