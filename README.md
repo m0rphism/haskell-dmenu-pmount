@@ -38,5 +38,5 @@ Options:
 
 The application is build with the
 [dmenu Haskell bindings](https://hackage.haskell.org/package/dmenu), which
-support customizing the dmenu commandline options in a configuration file.
+support customizing the dmenu commandline options in a [configuration file](https://github.com/m0rphism/haskell-dmenu/blob/master/CONFIG.md).
 
