@@ -4,7 +4,6 @@ module Main where
 
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.IO.Class
 import Control.Lens
 import Text.Read (readMaybe)
 import System.Directory
