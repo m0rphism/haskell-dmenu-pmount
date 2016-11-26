@@ -165,6 +165,8 @@ readArgs args =
     , k > 0 = do
       _3 .= k
       go as'
+    | a `elem` ["-h", "--help"] =
+      liftIO $ do putStrLn usage; exitFailure
     | a == "" =
       go as
   go _ =
@@ -209,4 +211,6 @@ usage =
     , "             `sd` or `cdrom`, e.g. `/dev/sda2`."
     , "  -k, --kilo <Natural>"
     , "    How much byte are represented by 1 KB? Usually 1024 (default) or 1000."
+    , "  -h, --help"
+    , "    Display this message."
     ]
