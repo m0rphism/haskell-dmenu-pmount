@@ -3,7 +3,7 @@
 }:
 mkDerivation {
   pname = "dmenu-pmount";
-  version = "0.1.0.0";
+  version = "0.1.0.1";
   src = ./.;
   isLibrary = false;
   isExecutable = true;
