@@ -33,6 +33,10 @@ stability:
 tested-with:
   GHC == 8.0.1
 
+extra-source-files:
+    README.md
+    TODO.md
+
 executable dmenu-pmount
   hs-source-dirs:
     src
