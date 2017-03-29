@@ -5,7 +5,7 @@ version:
 synopsis:
   Mounting and unmounting linux devices as user with dmenu and pmount.
 description:
-  See README.md file.
+  Mounting and unmounting linux devices as a user with dmenu and pmount.
 homepage:
   https://github.com/m0rphism/haskell-dmenu-pmount
 bug-reports:
